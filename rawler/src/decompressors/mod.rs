@@ -288,9 +288,18 @@ where
   T: SubPixel,
 {
   let mut out: Pix2D<T> = alloc_image_typed_ok!(T, width, height, dummy);
-  out.pixels_mut().par_chunks_mut(chunksize).enumerate().for_each(|(chunk_id, chunk)| {
-    closure(chunk, chunk_id);
-  });
+  // With one thread there is nothing to gain from handing the work to the pool.
+  if rayon::current_num_threads() == 1 {
+    out
+      .pixels_mut()
+      .chunks_mut(chunksize)
+      .enumerate()
+      .for_each(|(chunk_id, chunk)| closure(chunk, chunk_id));
+  } else {
+    out.pixels_mut().par_chunks_mut(chunksize).enumerate().for_each(|(chunk_id, chunk)| {
+      closure(chunk, chunk_id);
+    });
+  }
   Ok(out)
 }
 
